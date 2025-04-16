@@ -4,3 +4,5 @@ a.txt
 /migrations
 *.pyc
 /__pycache__
+server.crt
+server.key
