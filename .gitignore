@@ -1,0 +1,6 @@
+.env
+MIGRATION.txt
+a.txt
+/migrations
+*.pyc
+/__pycache__
