@@ -46,17 +46,13 @@ async def verify_code(request: VerifyCodeRequest, db: AsyncSession = Depends(get
 
       return ResponseUtils.success(
         token=token,
-        user=existing_user,
-        message="Авторизация прошла успешно"
       )
     else:
       new_user = await UserService.create_new_user(db, request.phone_number)
-      token = await SecurityMiddleware.generate_jwt_token(str(new_user.id))
+      token = SecurityMiddleware.generate_jwt_token(str(new_user.id))
 
       return ResponseUtils.success(
         token=token,
-        user=new_user,
-        message="Новый пользователь зарегистрирован успешно"
       )
 
   else:

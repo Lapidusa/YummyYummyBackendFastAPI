@@ -33,22 +33,26 @@ class SmsService:
 
     success = await connect.set_data_with_expiry(phone_number, verification_code, 5)
     if not success:
-      return None
+        print("❌ Не удалось сохранить код в Redis")
+        return {"dev_bypass": True}
 
-    message = f"Ваш код подтверждения: {verification_code}. Никому не сообщайте код."
-    payload = {
-      "number": "79856010277",
-      "destination": phone_number,
-      "text": message
-    }
-    try:
-      response = await self.client.post(self.API_URL, json=payload)
-      print(response)
-      response.raise_for_status()
-      return response.json()
-    except httpx.HTTPError as e:
-      logger.error(f"Ошибка при отправке SMS: {e}")
-      return None
+    print(f"📨 Код подтверждения для {phone_number}: {verification_code}")
+    return {"message": "Код успешно сохранён", "code": verification_code}
+
+      # message = f"Ваш код подтверждения: {verification_code}. Никому не сообщайте код."
+    # payload = {
+    #   "number": "79856010277",
+    #   "destination": phone_number,
+    #   "text": message
+    # }
+    # try:
+    #   response = await self.client.post(self.API_URL, json=payload)
+    #   print(response)
+    #   response.raise_for_status()
+    #   return response.json()
+    # except httpx.HTTPError as e:
+    #   logger.error(f"Ошибка при отправке SMS: {e}")
+    #   return None
 
   @staticmethod
   def generate_verification_code() -> str:
