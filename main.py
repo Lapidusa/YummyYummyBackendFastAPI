@@ -8,6 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from starlette.middleware.cors import CORSMiddleware
+from starlette.staticfiles import StaticFiles
+
 from app.routers.user import router as user_router
 from app.routers.city import router as city_router
 from app.routers.store import router as store_router
@@ -30,6 +32,7 @@ app = FastAPI(default_response_class=ORJSONResponse)
 origins = [
     "http://localhost",
     "http://localhost:3000",
+    "http://localhost:3001",
 ]
 
 app.add_middleware(
@@ -42,6 +45,8 @@ app.add_middleware(
 app.include_router(user_router, prefix="/user", tags=["User"])
 app.include_router(city_router, prefix="/city", tags=["City"])
 app.include_router(store_router, prefix="/store", tags=["Store"])
+
+app.mount("/media", StaticFiles(directory="media"), name="media")
 @app.get("/", include_in_schema=False)
 def read_root():
     return {"message": "This is a backend service for Yummy Yummy!"}
