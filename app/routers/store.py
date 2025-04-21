@@ -72,10 +72,10 @@ async def delete_store_endpoint(
   token: str = Header(None)
 ):
   if token is None:
-    raise ResponseUtils.error(message="Токен не предоставлен")
+    return ResponseUtils.error(message="Токен не предоставлен")
   await SecurityMiddleware.is_admin_or_manager(token, db)
   try:
     await StoreService.delete_store(db, store_id)
     return ResponseUtils.success(message="Магазин удален")
   except NoResultFound:
-    raise ResponseUtils.error(message="Магазин не найден")
+    return ResponseUtils.error(message="Магазин не найден")
