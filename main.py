@@ -31,8 +31,7 @@ app = FastAPI(default_response_class=ORJSONResponse)
 
 origins = [
     "http://localhost",
-    "http://localhost:3000",
-    "http://localhost:3001",
+    "http://localhost:3000"
 ]
 
 app.add_middleware(

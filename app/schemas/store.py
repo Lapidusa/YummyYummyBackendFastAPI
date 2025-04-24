@@ -1,10 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List
-from datetime import time
+from datetime import time, datetime
 from uuid import UUID
-
-# from app.schemas.category import Category
-from app.schemas.city import City
 
 class Store(BaseModel):
   id: UUID = Field(..., description="Уникальный идентификатор магазина")  # Уникальный идентификатор магазина
@@ -23,6 +20,24 @@ class Store(BaseModel):
   class Config:
     from_attributes = True
 
+class StoreResponse(BaseModel):
+  id: UUID
+  address: str
+  start_working_hours: time    # Время в строке
+  end_working_hours: time    # Время в строке
+  start_delivery_time: time    # Время в строке
+  end_delivery_time: time    # Время в строке
+  phone_number: str
+  min_order_price: int
+  city_id: UUID
+  created_at: datetime
+  updated_at: datetime
+  point: List[float]  # Координаты
+  area: List[List[float]]  # Площадь
+
+  class Config:
+    from_attributes = True
+
 class CreateStore(BaseModel):
   address: str
   start_working_hours: time
@@ -30,6 +45,7 @@ class CreateStore(BaseModel):
   start_delivery_time: time
   end_delivery_time: time
   phone_number: str
+  min_order_price: int
   area: List[List[float]]
   point: List[float]
   city_id: UUID
@@ -42,6 +58,7 @@ class UpdateStore(BaseModel):
   start_delivery_time: time
   end_delivery_time: time
   phone_number: str
+  min_order_price: int
   area: List[List[float]]
   point: List[float]
   city_id: UUID

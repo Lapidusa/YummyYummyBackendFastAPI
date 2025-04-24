@@ -9,6 +9,7 @@ from fastapi import HTTPException, APIRouter
 from sqlalchemy import select
 
 from app.core.config import settings
+from app.services.response_utils import ResponseUtils
 
 TOKEN_BLACKLIST = set()
 router = APIRouter()
@@ -27,21 +28,21 @@ class SecurityMiddleware:
   @staticmethod
   async def get_current_user(token: str, db: AsyncSession):
     if token in TOKEN_BLACKLIST:
-      raise HTTPException(status_code=401, detail="Токен отозван")
+      return ResponseUtils.error(message="Токен отозван")
 
     try:
       payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=["HS256"])
       user_id = payload.get("user_id")
       if user_id is None:
-        raise HTTPException(status_code=401, detail="Недействительный токен")
+        return ResponseUtils.error(message="Недействительный токен")
 
       async with db as session:
         result = await session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         if not user:
-          raise HTTPException(status_code=401, detail="Пользователь не найден")
+          return ResponseUtils.error(message="Пользователь не найден")
     except jwt.PyJWTError:
-      raise HTTPException(status_code=401, detail="Недействительный токен")
+      return ResponseUtils.error(message="Недействительный токен")
     return user
 
   @staticmethod

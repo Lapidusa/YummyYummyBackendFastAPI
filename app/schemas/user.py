@@ -10,7 +10,6 @@ class Roles(str, Enum):
   COURIER = 2
   MANAGER = 3
 
-
 class UpdateUserBase(BaseModel):
   phone_number: Optional[str]
   email: Optional[EmailStr]
@@ -18,5 +17,5 @@ class UpdateUserBase(BaseModel):
   date_of_birth: Optional[datetime]
   image_url: Optional[str]
 
-  class Config:
-    orm_mode = True
+class Config:
+  orm_mode = True
