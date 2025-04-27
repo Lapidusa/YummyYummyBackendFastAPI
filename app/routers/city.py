@@ -15,12 +15,15 @@ router = APIRouter()
 @router.get("/all-cities/")
 async def get_all_city_endpoint(db: AsyncSession = Depends(get_db)):
   cities = await CityService.get_all_cities(db)
+  for city in cities:
+    await CityService.convert_geometry(city)
   return ResponseUtils.success(cities=cities)
 
 @router.get("/{city_id}")
 async def get_city(city_id: UUID, db: AsyncSession = Depends(get_db)):
   try:
     city = await CityService.get_city_by_id(db, city_id)
+    await CityService.convert_geometry(city)
     return ResponseUtils.success(city=city)
   except NoResultFound:
     return ResponseUtils.error(message=f"Нет найденного города с id {city_id}")
@@ -35,8 +38,9 @@ async def create_city(
     return ResponseUtils.error(message="Токен не предоставлен")
   await SecurityMiddleware.is_admin_or_manager(token, db)
   try:
-    new_category = await CityService.create_city(db, city_data)
-    return ResponseUtils.success(data=new_category, message="Категория создана")
+    new_city = await CityService.create_city(db, city_data)
+    await CityService.convert_geometry(new_city)
+    return ResponseUtils.success(city=new_city, message="Город создана")
   except Exception as e:
     return ResponseUtils.error(message=str(e))
 
@@ -51,7 +55,8 @@ async def update_city(
   await SecurityMiddleware.is_admin_or_manager(token, db)
   try:
     updated_city = await CityService.update_city(db, category_data)
-    return ResponseUtils.success(data=updated_city, message="Город успешно изменен")
+    await CityService.convert_geometry(updated_city)
+    return ResponseUtils.success(city=updated_city, message="Город успешно изменен")
   except Exception as e:
     return ResponseUtils.error(message=str(e))
 
