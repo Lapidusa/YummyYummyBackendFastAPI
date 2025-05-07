@@ -22,7 +22,7 @@ class StoreService:
 
     # Проверка: точка внутри полигона
     if not area_geom.contains(point_geom):
-      raise ResponseUtils.error(message="Локация магазина должна находиться внутри границы области.")
+      return ResponseUtils.error(message="Локация магазина должна находиться внутри границы области.")
 
     # Получение всех других магазинов (если редактирование — исключаем текущий ID)
     query = select(Store)
@@ -36,7 +36,7 @@ class StoreService:
       if other_store.area:
         other_area = load_wkb(bytes(other_store.area.data))
         if area_geom.intersects(other_area):
-          raise ResponseUtils.error(message="Область нового магазина пересекается с другой.")
+          return ResponseUtils.error(message="Область нового магазина пересекается с другой.")
 
   @staticmethod
   async def get_store_by_id(db: AsyncSession, store_id: UUID) -> StoreModel:
@@ -56,7 +56,6 @@ class StoreService:
 
   @staticmethod
   async def get_stores_by_city(db: AsyncSession, city_id: UUID) -> List[StoreModel]:
-    from sqlalchemy import select
     result = await db.execute(
       select(StoreModel).where(StoreModel.city_id == city_id)
     )

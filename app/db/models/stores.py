@@ -3,7 +3,6 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy.orm import relationship
-# from app.db.models.category import store_categories
 from app.db import Base
 from geoalchemy2 import Geometry
 
@@ -24,4 +23,4 @@ class Store(Base):
   point = Column(Geometry('POINT'), nullable=False)
   city_id = Column(UUID(as_uuid=True), ForeignKey('cities.id'), nullable=False)
   city = relationship("City", back_populates="stores")
-  # categories = relationship("Category", secondary=store_categories, back_populates="stores")
+  categories = relationship("Category", back_populates="store", cascade="all, delete-orphan")

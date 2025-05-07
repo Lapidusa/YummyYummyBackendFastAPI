@@ -13,6 +13,7 @@ from starlette.staticfiles import StaticFiles
 from app.routers.user import router as user_router
 from app.routers.city import router as city_router
 from app.routers.store import router as store_router
+from app.routers.category import router as category_router
 from app.core.config import settings
 from app.db.models.users import User, Roles
 
@@ -44,6 +45,7 @@ app.add_middleware(
 app.include_router(user_router, prefix="/user", tags=["User"])
 app.include_router(city_router, prefix="/city", tags=["City"])
 app.include_router(store_router, prefix="/store", tags=["Store"])
+app.include_router(category_router, prefix="/category", tags=["Category"])
 
 app.mount("/media", StaticFiles(directory="media"), name="media")
 @app.get("/", include_in_schema=False)

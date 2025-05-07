@@ -1,6 +1,5 @@
 from fastapi import Depends, APIRouter
 from fastapi.params import Header
-from shapely.geometry.geo import shape
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
@@ -12,7 +11,7 @@ from app.schemas.store import UpdateStore, CreateStore, StoreResponse
 from app.services.store_service import StoreService
 router = APIRouter()
 
-@router.get("/get-store/{store_id}")
+@router.get("/get-store/{store_id}/")
 async def get_store_endpoint(store_id: UUID, db: AsyncSession = Depends(get_db)):
   try:
     store = await StoreService.get_store_by_id(db, store_id)
@@ -20,8 +19,9 @@ async def get_store_endpoint(store_id: UUID, db: AsyncSession = Depends(get_db))
     response_data = StoreResponse.from_orm(store)
     return ResponseUtils.success(store=response_data.dict())
   except NoResultFound:
-    raise ResponseUtils.error(message="Нет найденного магазина")
-@router.get("/stores-by-city/{city_id}")
+    return ResponseUtils.error(message="Нет найденного магазина")
+
+@router.get("/get-stores-by-city/{city_id}/")
 async def get_stores_by_city_endpoint(
   city_id: UUID,
   db: AsyncSession = Depends(get_db)
@@ -47,13 +47,13 @@ async def create_store_endpoint(
   token: str = Header(None)
 ):
   if token is None:
-    raise ResponseUtils.error(message="Токен не предоставлен")
+    return ResponseUtils.error(message="Токен не предоставлен")
   await SecurityMiddleware.is_admin_or_manager(token, db)
   try:
     new_store = await StoreService.create_store(db, store_data)
     await StoreService.convert_geometry(new_store)
     response_data = StoreResponse.from_orm(new_store)
-    return ResponseUtils.success(store=response_data.dict(), message="Магазин успешно создан")
+    return ResponseUtils.success(store=response_data.dict())
 
   except IntegrityError as e:
     if "stores_phone_number_key" in str(e.orig):
@@ -62,8 +62,7 @@ async def create_store_endpoint(
   except Exception as e:
     return ResponseUtils.error(message=str(e))
 
-
-@router.put("/{store_id}")
+@router.put("/{store_id}/")
 async def update_store_endpoint(
   store_data: UpdateStore,
   db: AsyncSession = Depends(get_db),
@@ -86,8 +85,7 @@ async def update_store_endpoint(
   except Exception as e:
     return ResponseUtils.error(message=str(e))
 
-
-@router.delete("/stores/{store_id}")
+@router.delete("/{store_id}/")
 async def delete_store_endpoint(
   store_id: UUID,
   db: AsyncSession = Depends(get_db),
