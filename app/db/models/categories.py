@@ -6,9 +6,9 @@ from sqlalchemy.orm import relationship
 from app.db import Base
 
 class TypeCategory(PyEnum):
-  GROUP = "group"
-  PIZZA = "pizza"
-  CONSTRUCTOR = "constructor"
+  GROUP = 0
+  PIZZA = 1
+  CONSTRUCTOR = 2
 
 class Category(Base):
   __tablename__ = 'categories'

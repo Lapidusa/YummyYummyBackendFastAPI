@@ -16,8 +16,8 @@ async def get_store_endpoint(store_id: UUID, db: AsyncSession = Depends(get_db))
   try:
     store = await StoreService.get_store_by_id(db, store_id)
     await StoreService.convert_geometry(store)
-    response_data = StoreResponse.from_orm(store)
-    return ResponseUtils.success(store=response_data.dict())
+    response_data = StoreResponse.model_validate(store)
+    return ResponseUtils.success(store=response_data.model_dump())
   except NoResultFound:
     return ResponseUtils.error(message="Нет найденного магазина")
 
@@ -29,7 +29,7 @@ async def get_stores_by_city_endpoint(
   stores = await StoreService.get_stores_by_city(db, city_id)
   for store in stores:
     await StoreService.convert_geometry(store)
-  response_data = [StoreResponse.from_orm(store).dict() for store in stores]
+  response_data = [StoreResponse.model_validate(store).model_dump() for store in stores]
   return ResponseUtils.success(stores=response_data)
 
 @router.get("/all-stores/")
@@ -37,7 +37,7 @@ async def get_all_stores_endpoint(db: AsyncSession = Depends(get_db)):
   stores = await StoreService.get_all_stores(db)
   for store in stores:
     await StoreService.convert_geometry(store)
-  response_data = [StoreResponse.from_orm(store).dict() for store in stores]
+  response_data = [StoreResponse.model_validate(store).model_dump() for store in stores]
   return ResponseUtils.success(stores=response_data)
 
 @router.post("/create-store/")
@@ -46,14 +46,12 @@ async def create_store_endpoint(
   db: AsyncSession = Depends(get_db),
   token: str = Header(None)
 ):
-  if token is None:
-    return ResponseUtils.error(message="Токен не предоставлен")
-  await SecurityMiddleware.is_admin_or_manager(token, db)
+  await SecurityMiddleware.is_admin(token, db)
+
   try:
     new_store = await StoreService.create_store(db, store_data)
     await StoreService.convert_geometry(new_store)
-    response_data = StoreResponse.from_orm(new_store)
-    return ResponseUtils.success(store=response_data.dict())
+    return ResponseUtils.success(store=StoreResponse.model_validate(new_store).model_dump())
 
   except IntegrityError as e:
     if "stores_phone_number_key" in str(e.orig):
@@ -68,16 +66,17 @@ async def update_store_endpoint(
   db: AsyncSession = Depends(get_db),
   token: str = Header(None)
 ):
-  if token is None:
-    raise ResponseUtils.error(message="Токен не предоставлен")
-  await SecurityMiddleware.is_admin_or_manager(token, db)
+  await SecurityMiddleware.is_admin(token, db)
+
   try:
     updated_store = await StoreService.update_store(db, store_data)
     await StoreService.convert_geometry(updated_store)
-    response_data = StoreResponse.from_orm(updated_store)
-    return ResponseUtils.success(store=response_data.dict(), message="Магазин успешно изменен")
+    response_data = StoreResponse.model_validate(updated_store)
+    return ResponseUtils.success(store=response_data.model_dump())
+
   except NoResultFound:
     raise ResponseUtils.error(message="Магазин не найден")
+
   except IntegrityError as e:
     if "stores_phone_number_key" in str(e.orig):
       return ResponseUtils.error(message="Магазин с таким номером телефона уже существует.")
@@ -91,9 +90,8 @@ async def delete_store_endpoint(
   db: AsyncSession = Depends(get_db),
   token: str = Header(None)
 ):
-  if token is None:
-    return ResponseUtils.error(message="Токен не предоставлен")
-  await SecurityMiddleware.is_admin_or_manager(token, db)
+  await SecurityMiddleware.is_admin(token, db)
+
   try:
     await StoreService.delete_store(db, store_id)
     return ResponseUtils.success(message="Магазин удален")

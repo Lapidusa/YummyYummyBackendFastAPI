@@ -6,6 +6,8 @@ from geoalchemy2.shape import from_shape
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+
 from app.db.models.stores import Store
 from app.db.models.stores import Store as StoreModel
 from app.schemas.store import CreateStore, UpdateStore
@@ -40,7 +42,13 @@ class StoreService:
 
   @staticmethod
   async def get_store_by_id(db: AsyncSession, store_id: UUID) -> StoreModel:
-    query = select(StoreModel).where(StoreModel.id == store_id)
+    query = (
+      select(StoreModel)
+      .options(
+        selectinload(StoreModel.categories),
+      )
+      .where(StoreModel.id == store_id)
+    )
     result = await db.execute(query)
     store = result.scalar_one_or_none()
     if not store:
@@ -49,7 +57,12 @@ class StoreService:
 
   @staticmethod
   async def get_all_stores(db: AsyncSession) -> List[Store]:
-    query = select(StoreModel)
+    query = (
+      select(StoreModel)
+      .options(
+        selectinload(StoreModel.categories),
+      )
+    )
     result = await db.execute(query)
     stores = list(result.scalars().all())
     return stores
@@ -57,7 +70,11 @@ class StoreService:
   @staticmethod
   async def get_stores_by_city(db: AsyncSession, city_id: UUID) -> List[StoreModel]:
     result = await db.execute(
-      select(StoreModel).where(StoreModel.city_id == city_id)
+      select(StoreModel)
+      .options(
+        selectinload(StoreModel.categories)
+      )
+      .where(StoreModel.city_id == city_id)
     )
     return list(result.scalars().all())
 
@@ -83,8 +100,8 @@ class StoreService:
         phone_number=store_data.phone_number,
         min_order_price=store_data.min_order_price,
         city_id=store_data.city_id,
-        created_at=datetime.now(),
-        updated_at=datetime.now()
+        created_at=store_data.created_at,
+        updated_at=store_data.updated_at
     )
 
     if polygon:

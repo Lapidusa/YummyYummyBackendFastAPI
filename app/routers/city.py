@@ -36,11 +36,11 @@ async def create_city(
 ):
   if token is None:
     return ResponseUtils.error(message="Токен не предоставлен")
-  await SecurityMiddleware.is_admin_or_manager(token, db)
+  await SecurityMiddleware.is_admin(token, db)
   try:
     new_city = await CityService.create_city(db, city_data)
     await CityService.convert_geometry(new_city)
-    return ResponseUtils.success(city=new_city, message="Город создана")
+    return ResponseUtils.success(city=new_city, message="Город создан")
   except Exception as e:
     return ResponseUtils.error(message=str(e))
 
@@ -52,7 +52,7 @@ async def update_city(
 ):
   if token is None:
     return ResponseUtils.error(message="Токен не предоставлен")
-  await SecurityMiddleware.is_admin_or_manager(token, db)
+  await SecurityMiddleware.is_admin(token, db)
   try:
     updated_city = await CityService.update_city(db, category_data)
     await CityService.convert_geometry(updated_city)
@@ -68,7 +68,7 @@ async def delete_category_endpoint(
 ):
   if token is None:
     return ResponseUtils.error(message="Токен не предоставлен")
-  await SecurityMiddleware.is_admin_or_manager(token, db)
+  await SecurityMiddleware.is_admin(token, db)
 
   try:
     await CityService.delete_city(db, city_id)

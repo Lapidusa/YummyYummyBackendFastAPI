@@ -38,7 +38,7 @@ class CategoryService:
     result = await db.execute(query)
     category = result.scalar_one_or_none()
     if not category:
-      raise NoResultFound(f"Store with ID {category_id} not found")
+      raise NoResultFound(f"Category with ID {category_id} not found")
     return category
 
   @staticmethod

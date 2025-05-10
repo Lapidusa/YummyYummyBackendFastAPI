@@ -27,7 +27,7 @@ class UserService:
 
   @staticmethod
   async def update_user(db: AsyncSession, token: str, update_data: UpdateUserBase) -> Type[User]:
-    detached_user = await SecurityMiddleware.get_current_user(token, db)
+    detached_user = await SecurityMiddleware.get_user_or_error_dict(token, db)
     user = await db.get(User, detached_user.id)
     if not detached_user:
       raise NoResultFound("Пользователь не найден")

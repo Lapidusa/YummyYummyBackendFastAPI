@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List
 from datetime import time, datetime
 from uuid import UUID
@@ -6,31 +6,30 @@ from uuid import UUID
 from app.schemas.category import Category
 
 class Store(BaseModel):
-  address: str = Field(..., description="Адрес магазина")  # Адрес магазина
-  start_working_hours: time = Field(..., description="Начало рабочего времени")  # Время начала работы
-  end_working_hours: time = Field(..., description="Конец рабочего времени")  # Время окончания работы
-  start_delivery_time: time = Field(..., description="Начало времени доставки")  # Время начала доставки
-  end_delivery_time: time = Field(..., description="Конец времени доставки")  # Время окончания доставки
-  phone_number: str = Field(..., description="Номер телефона магазина")  # Номер телефона
+  address: str = Field(..., description="Адрес магазина")
+  start_working_hours: time = Field(..., description="Начало рабочего времени")
+  end_working_hours: time = Field(..., description="Конец рабочего времени")
+  start_delivery_time: time = Field(..., description="Начало времени доставки")
+  end_delivery_time: time = Field(..., description="Конец времени доставки")
+  phone_number: str = Field(..., description="Номер телефона магазина")
   min_order_price: int = Field(..., description="Минимальная сумма для заказа")
-  city_id: UUID  # ID города
-  categories: List[Category] = Field(default_factory=list, description="Список связанных категорий")  # Связанные категории
+  city_id: UUID
   area: List[List[float]]
   point: List[float]
+  created_at:datetime
+  updated_at:datetime
 
   class Config:
     from_attributes = True
 
 class StoreResponse(Store):
-  id: UUID = Field(..., description="Уникальный идентификатор магазина")  # Уникальный идентификатор магазина
-  pass
+  id: UUID = Field(..., description="Уникальный идентификатор магазина")
 
   class Config:
-    from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
-class CreateStore(BaseModel):
+class CreateStore(Store):
   pass
 
-class UpdateStore(BaseModel):
+class UpdateStore(Store):
   id: UUID
-  pass

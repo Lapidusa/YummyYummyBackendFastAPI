@@ -28,7 +28,7 @@ async def get_all_categories_endpoint(db: AsyncSession = Depends(get_db)):
 
 @router.get("/get-category-by-store/{store_id}")
 async def get_category_by_store_endpoint(store_id: UUID, db: AsyncSession = Depends(get_db)):
-  categories = await CategoryService.get_category_by_id(db, store_id)
+  categories = await CategoryService.get_category_by_store(db, store_id)
   return ResponseUtils.success(categories=categories)
 
 @router.post("/swap-position/")
@@ -55,6 +55,7 @@ async def create_category_endpoint(
   await SecurityMiddleware.is_admin_or_manager(token, db)
   new_category = await CategoryService.create_category(db, category_data)
   return ResponseUtils.success(category=new_category)
+
 @router.put("/{category_id}")
 async def update_category_endpoint(
     category_data: UpdateCategory,
