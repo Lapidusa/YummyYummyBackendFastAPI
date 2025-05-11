@@ -136,6 +136,7 @@ class StoreService:
     store.start_delivery_time = store_data.start_delivery_time
     store.end_delivery_time = store_data.end_delivery_time
     store.phone_number = store_data.phone_number
+    store.min_order_price = store_data.min_order_price
     store.updated_at = datetime.now()
 
     if polygon:

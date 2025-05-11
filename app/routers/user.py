@@ -100,6 +100,8 @@ async def update_user(
 @router.get("/get-user/")
 async def get_user(token: str = Header(alias="token"), db: AsyncSession = Depends(get_db)):
   user = await SecurityMiddleware.get_user_or_error_dict(token, db)
+  if isinstance(user, dict):
+    return user
   if user:
     return ResponseUtils.success(user=user)
   else:
@@ -108,6 +110,8 @@ async def get_user(token: str = Header(alias="token"), db: AsyncSession = Depend
 @router.post("/logout/")
 async def logout_route(token: str = Header(alias="token"), db: AsyncSession = Depends(get_db)):
   user = await SecurityMiddleware.get_user_or_error_dict(token, db)
+  if isinstance(user, dict):
+    return user
   if user:
     await SecurityMiddleware.logout(token)
     return ResponseUtils.success(message="Вы успешно вышли из системы")

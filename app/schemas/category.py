@@ -1,9 +1,8 @@
 from pydantic import BaseModel, Field
 from uuid import UUID
-from enum import Enum
-from typing import Optional
+from enum import IntEnum
 
-class TypeCategory(str, Enum):
+class TypeCategory(IntEnum):
   GROUP = 0
   PIZZA = 1
   CONSTRUCTOR = 2

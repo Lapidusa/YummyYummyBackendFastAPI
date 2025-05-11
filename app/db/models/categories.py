@@ -1,11 +1,11 @@
 import uuid
-from enum import Enum as PyEnum
+from enum import IntEnum
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy import Column, String, ForeignKey, Boolean, Integer, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.db import Base
 
-class TypeCategory(PyEnum):
+class TypeCategory(IntEnum):
   GROUP = 0
   PIZZA = 1
   CONSTRUCTOR = 2
