@@ -1,7 +1,9 @@
 from pydantic_settings import BaseSettings
 import os
 from dotenv import load_dotenv,find_dotenv
+
 load_dotenv(find_dotenv())
+
 class Settings(BaseSettings):
     SMS_API_KEY: str = os.environ.get('SMS_API_KEY')
     SMS_API_URL: str = os.environ.get('SMS_API_URL')
