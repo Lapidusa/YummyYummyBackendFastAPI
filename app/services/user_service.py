@@ -1,4 +1,4 @@
-from typing import Any, Type, Coroutine
+from typing import Type
 
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
@@ -8,7 +8,7 @@ from datetime import datetime
 
 from app.core.security import SecurityMiddleware
 from app.db.models.users import User, Roles
-from app.schemas.user import UpdateUserBase
+from app.schemas.user import UpdateUserForm
 
 
 class UserService:
@@ -26,14 +26,14 @@ class UserService:
     return new_user
 
   @staticmethod
-  async def update_user(db: AsyncSession, token: str, update_data: UpdateUserBase) -> Type[User]:
+  async def update_user(db: AsyncSession, token: str, update_data: UpdateUserForm) -> Type[User]:
     detached_user = await SecurityMiddleware.get_user_or_error_dict(token, db)
     user = await db.get(User, detached_user.id)
     if not detached_user:
       raise NoResultFound("Пользователь не найден")
     if not user:
       raise NoResultFound("Пользователь не найден")
-    for field, value in update_data.dict(exclude_unset=True).items():
+    for field, value in update_data.model_dump(exclude_unset=True).items():
       if isinstance(value, datetime) and value.tzinfo is not None:
         value = value.replace(tzinfo=None)
       setattr(user, field, value)

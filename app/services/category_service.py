@@ -1,5 +1,6 @@
 from typing import List
-
+import logging
+from fastapi import HTTPException
 from sqlalchemy.exc import NoResultFound, IntegrityError
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,24 +13,25 @@ from app.services.response_utils import ResponseUtils
 class CategoryService:
   @staticmethod
   async def swap_categories_by_ids(db: AsyncSession, first_id: UUID, second_id: UUID) -> None:
-
-    query = select(CategoryModel).where(CategoryModel.id.in_([first_id, second_id]))
-    result = await db.execute(query)
+    result = await db.execute(
+      select(CategoryModel).filter(CategoryModel.id.in_([first_id, second_id]))
+    )
     categories = result.scalars().all()
 
     if len(categories) != 2:
-      raise ResponseUtils.error("Одна или обе категории не найдены")
+      raise ValueError("Не удалось найти обе категории для обмена")
 
-    cat1, cat2 = categories
+    category_1, category_2 = categories
 
-    if cat1.store_id != cat2.store_id:
-      raise ResponseUtils.error("Категории из разных магазинов — нельзя менять местами")
+    pos1 = category_1.position
+    pos2 = category_2.position
 
-    TEMP_POSITION = -1
-
-    cat1.position, cat2.position = TEMP_POSITION, cat1.position
+    category_1.position = -100
     await db.flush()
-    cat1.position = cat2.position
+    category_2.position = pos1
+    await db.flush()
+
+    category_1.position = pos2
     await db.commit()
 
   @staticmethod
