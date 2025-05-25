@@ -1,8 +1,20 @@
-from pydantic import BaseModel, model_validator, Field
-from typing import List, Optional
-from uuid import UUID
+from enum import Enum as PyEnum, IntEnum
 
-from app.db.models.products import Type
+from pydantic import BaseModel, model_validator, Field
+from typing import List, Optional, Literal
+from uuid import UUID
+import re
+from app.db.models.products import Type, Dough
+
+class TypeProduct(IntEnum):
+  GROUP = 0
+  CONSTRUCTOR = 1
+  PIZZA = 2
+
+class PizzaSize(PyEnum):
+  S = 0
+  M = 1
+  L = 2
 
 class ProductVariantCreate(BaseModel):
     size: str
@@ -26,17 +38,31 @@ class ReplacementGroupCreate(BaseModel):
 class ProductReplacementCreate(BaseModel):
     group: ReplacementGroupCreate
 
-class ProductCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    category_id: UUID
-    is_available: bool = True
-    type: Type
-    variants: List[ProductVariantCreate] = []
-    replacements: List[ProductReplacementCreate] = []
+class ProductBase(BaseModel):
+  name: str
+  category_id: UUID
+  is_available: bool = True
+  variants: List[ProductVariantCreate]
+  replacements: List[ProductReplacementCreate] = []
 
-    @model_validator(mode="after")
-    def check_variants(self) -> "ProductCreate":
-      if not self.variants:
-        raise ValueError("У продукта должен быть хотя бы один вариант")
-      return self
+  @model_validator(mode="after")
+  def check_variants(self) -> "ProductBase":
+    if not self.variants:
+      raise ValueError("У продукта должен быть хотя бы один вариант")
+    return self
+
+class PizzaCreate(ProductBase):
+  type: Literal[TypeProduct.PIZZA]  # пицца
+  description: Optional[str] = None
+  dough: Dough
+
+
+class ProductCreate(ProductBase):
+  type: TypeProduct  # обычный
+  description: Optional[str] = None
+
+class PizzaUpdate(PizzaCreate):
+  pass
+
+class ProductUpdate(ProductCreate):
+  pass

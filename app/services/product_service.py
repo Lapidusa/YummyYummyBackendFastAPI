@@ -1,37 +1,71 @@
+import os
 from uuid import UUID
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import Product, Category
 from app.db.models.products import Type, Pizza, Dough, ProductVariant
-from app.schemas.product import ProductCreate
+from app.schemas.product import ProductCreate, PizzaCreate, ProductUpdate, PizzaUpdate
+from typing import Union, cast
 
+ProductUnionCreate = Union[ProductCreate, PizzaCreate]
+ProductUnionUpdate = Union[ProductUpdate, PizzaUpdate]
 class ProductService:
+
   @staticmethod
-  async def create_product(db: AsyncSession, product_data: ProductCreate) -> Product:
+  async def get_products_by_category(db: AsyncSession, category_id: UUID):
+    result = await db.execute(
+      select(Product)
+      .options(selectinload(Product.variants))
+      .where(Product.category_id == category_id)
+    )
+    return result.scalars().all()
+
+  @staticmethod
+  async def get_product_by_id(db: AsyncSession, product_id: UUID):
+    result = await db.execute(
+      select(Product)
+      .options(selectinload(Product.variants))
+      .where(Product.id == product_id)
+    )
+    return result.scalar_one_or_none()
+
+  @staticmethod
+  async def get_products_by_store(db: AsyncSession, store_id: UUID):
+    result = await db.execute(
+      select(Product).join(Category)
+      .options(selectinload(Product.variants))
+      .where(Product.store_id == store_id)
+    )
+    return result.scalars().all()
+
+  @staticmethod
+  async def create_product(db: AsyncSession, product_data: ProductUnionCreate) -> Product:
     max_position_query = select(func.max(Product.position)).where(
-      Product.category_id == product_data.category_id
+      Product.category_id==product_data.category_id
     )
     result = await db.execute(max_position_query)
     max_position = result.scalar() or 0
     if product_data.type == Type.PIZZA:
-      if product_data.dough is None:
-        raise ValueError("Для пиццы нужно указать тип теста")
       obj = Pizza(
+        category_id=product_data.category_id,
         name = product_data.name,
         description = product_data.description,
         position = max_position + 1,
         is_available = product_data.is_available,
-        dough = Dough[product_data.dough.upper()]
+        dough = Dough.THICK_DOUGH
       )
     else:
       obj = Product(
+        category_id=product_data.category_id,
         name = product_data.name,
         description = product_data.description,
         position = max_position + 1,
         is_available = product_data.is_available
       )
+    variants = cast(list[ProductVariant], obj.variants)
 
     # Добавляем варианты
     for variant_data in product_data.variants:
@@ -46,7 +80,7 @@ class ProductService:
         is_available = variant_data.is_available,
         image = variant_data.image
       )
-      obj.variants.append(variant)
+      variants.append(variant)
 
     db.add(obj)
     await db.commit()
@@ -55,22 +89,49 @@ class ProductService:
     return obj
 
   @staticmethod
-  async def get_products_by_category(db: AsyncSession, category_id: UUID):
-    result = await db.execute(
-      select(Product).where(Product.category_id == category_id)
-    )
-    return result.scalars().all()
+  async def update_product(db: AsyncSession, product_id: UUID, product_data: ProductUnionUpdate) -> Product:
+    product = await ProductService.get_product_by_id(db, product_id)
+    product.name = product_data.name
+    product.description = product_data.description
+    product.is_available = product_data.is_available
+    product.category_id = product_data.category_id
+
+    if isinstance(product, Pizza) and isinstance(product_data, PizzaUpdate):
+      product.dough = product_data.dough
+    variants = cast(list[ProductVariant], product.variants)
+    variants.clear()
+    for variant_data in product_data.variants:
+      variant = ProductVariant(
+        size=variant_data.size,
+        price=variant_data.price,
+        weight=variant_data.weight,
+        calories=variant_data.calories,
+        proteins=variant_data.proteins,
+        fats=variant_data.fats,
+        carbohydrates=variant_data.carbohydrates,
+        is_available=variant_data.is_available,
+        image=variant_data.image
+      )
+      variants.append(variant)
+
+    await db.commit()
+    await db.refresh(product)
+    return product
 
   @staticmethod
-  async def get_product_by_id(db: AsyncSession, product_id: UUID):
-    result = await db.execute(
-      select(Product).where(Product.id == product_id)
-    )
-    return result.scalar_one_or_none()
+  async def delete_product(db: AsyncSession, product_id: UUID) -> bool:
+    product = await ProductService.get_product_by_id(db, product_id)
 
-  @staticmethod
-  async def get_products_by_store(db: AsyncSession, store_id: UUID):
-    result = await db.execute(
-      select(Product).join(Category).where(Category.store_id == store_id)
-    )
-    return result.scalars().all()
+    if not product:
+        raise ValueError("Продукт не найден")
+
+    # Удаляем связанные изображения
+    for variant in product.variants:
+        if variant.image:
+            image_path = variant.image.lstrip("/")
+            if os.path.exists(image_path):
+                os.remove(image_path)
+
+    await db.delete(product)
+    await db.commit()
+    return True

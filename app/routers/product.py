@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import SecurityMiddleware
 from app.db import get_db
 from app.db.models.products import Type
-from app.schemas.product import ProductCreate
+from app.schemas.product import ProductCreate, ProductUpdate, PizzaUpdate
 from app.services.product_service import ProductService
 from app.services.response_utils import ResponseUtils
 
@@ -28,6 +28,7 @@ async def get_product_by_id(product_id: UUID, db: AsyncSession = Depends(get_db)
 async def get_products_by_store(store_id: UUID, db: AsyncSession = Depends(get_db)):
     products = await ProductService.get_products_by_store(db, store_id)
     return ResponseUtils.success(products=products)
+
 @router.post("/create")
 async def create_product(
     product_data_json: str = Form(...),
@@ -70,3 +71,73 @@ async def create_product(
 
   product = await ProductService.create_product(db, product_data)
   return ResponseUtils.success(product=product)
+
+@router.put("/update/{product_id}")
+async def update_product(
+    product_id: UUID,
+    product_data_json: str = Form(...),
+    images: list[UploadFile] = File(default_factory=list),
+    db: AsyncSession = Depends(get_db),
+    token: str = Header(None)
+):
+  if token is None:
+    return ResponseUtils.error(message="Токен не предоставлен")
+  await SecurityMiddleware.is_admin_or_manager(token, db)
+
+  try:
+    parsed_data = json.loads(product_data_json)
+    variants_data = parsed_data.get("variants", [])
+  except json.JSONDecodeError:
+    return ResponseUtils.error("Некорректный формат JSON данных")
+
+  image_index = 0
+  for i, variant in enumerate(variants_data):
+    if not variant.get("image_url") and image_index >= len(images):
+      return ResponseUtils.error(f"Для варианта {i + 1} не указано изображение")
+
+    if image_index < len(images):
+      image = images[image_index]
+      if not image.filename.lower().endswith((".jpg", ".jpeg", ".png")):
+        return ResponseUtils.error(f"Недопустимый формат изображения: {image.filename}")
+
+      save_path = f"media/products/{image.filename}"
+      os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+      with open(save_path, "wb") as f:
+        f.write(await image.read())
+
+      variant["image_url"] = f"/media/products/{image.filename}"
+      image_index += 1
+
+  parsed_data["variants"] = variants_data
+
+  try:
+    product_data = ProductUpdate(**parsed_data)
+  except Exception as e:
+    try:
+      product_data = PizzaUpdate(**parsed_data)
+    except Exception as e:
+      return ResponseUtils.error(f"Ошибка валидации: {str(e)}")
+
+  try:
+    product = await ProductService.update_product(db, product_id, product_data)
+  except ValueError as e:
+    return ResponseUtils.error(str(e))
+
+  return ResponseUtils.success(product=product)
+
+@router.delete("/delete/{product_id}")
+async def delete_product(
+    product_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    token: str = Header(None)
+):
+    if token is None:
+        return ResponseUtils.error(message="Токен не предоставлен")
+    await SecurityMiddleware.is_admin_or_manager(token, db)
+
+    try:
+        await ProductService.delete_product(db, product_id)
+        return ResponseUtils.success(message="Продукт удалён")
+    except ValueError as e:
+        return ResponseUtils.error(str(e))

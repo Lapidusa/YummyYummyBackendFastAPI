@@ -16,6 +16,7 @@ class UpdateUserForm(BaseModel):
   email: Optional[EmailStr]
   name: Optional[str]
   date_of_birth: Optional[datetime]
+  image_url: Optional[str]
 
   @classmethod
   def as_form(
