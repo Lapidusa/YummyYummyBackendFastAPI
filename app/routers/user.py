@@ -60,6 +60,7 @@ async def verify_code(request: VerifyCodeRequest, db: AsyncSession = Depends(get
 
   else:
     return ResponseUtils.error(message="Неверный код или срок действия кода истёк")
+
 @router.put("/update-user/")
 async def update_user(
   form_data: UpdateUserForm = Depends(UpdateUserForm.as_form),
@@ -87,6 +88,7 @@ async def update_user(
     return ResponseUtils.success(user = new_user)
   else:
     return ResponseUtils.error(message="Не найден пользователь")
+
 @router.get("/get-user/")
 async def get_user(token: str = Header(alias="token"), db: AsyncSession = Depends(get_db)):
   user = await SecurityMiddleware.get_user_or_error_dict(token, db)

@@ -51,11 +51,15 @@ class ProductBase(BaseModel):
       raise ValueError("У продукта должен быть хотя бы один вариант")
     return self
 
+class IngredientInPizza(BaseModel):
+  ingredient_id: int
+  is_deleted: Optional[bool] = False
+
 class PizzaCreate(ProductBase):
-  type: Literal[TypeProduct.PIZZA]  # пицца
+  type: Literal[TypeProduct.PIZZA]
   description: Optional[str] = None
   dough: Dough
-
+  ingredients: List[IngredientInPizza]
 
 class ProductCreate(ProductBase):
   type: TypeProduct  # обычный

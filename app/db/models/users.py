@@ -1,7 +1,11 @@
-from sqlalchemy import Column, String, DateTime, Integer, func
+from typing import List
+
+from sqlalchemy import Column, String, DateTime, Integer, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 import uuid
 from enum import Enum as PyEnum
+
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
@@ -24,3 +28,22 @@ class User(Base):
     role = Column(ENUM(Roles), default=Roles.USER)
     image_url = Column(String(255), nullable=True)
     scores = Column(Integer, default=0)
+    orders: Mapped[List["Order"]] = relationship(
+        "Order",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
+class UserAddress(Base):
+    __tablename__ = "user_addresses"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    street: Mapped[str] = mapped_column(String)
+    house: Mapped[str] = mapped_column(String)
+    apartment: Mapped[str | None] = mapped_column(String, nullable=True)
+    label: Mapped[str | None] = mapped_column(String, nullable=True)  # например "Дом", "Офис"
+
+    user = relationship("User", back_populates="addresses")
+
+User.addresses = relationship("UserAddress", back_populates="user", cascade="all, delete-orphan")

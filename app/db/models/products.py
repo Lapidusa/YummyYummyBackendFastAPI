@@ -1,10 +1,24 @@
-from sqlalchemy import String, Float, ForeignKey, Boolean, Integer
+from sqlalchemy import String, Float, ForeignKey, Boolean, Integer, Table, Column
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 import uuid
+from uuid import UUID as UUID_PY
 from enum import IntEnum
 from app.db import Base
 from typing import List
+
+
+class PizzaIngredient(Base):
+    __tablename__ = "pizza_ingredients"
+
+    pizza_id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True), ForeignKey("pizzas.id"), primary_key=True)
+    ingredient_id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True), ForeignKey("ingredients.id"), primary_key=True)
+
+    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    pizza = relationship("Pizza", back_populates="pizza_ingredients")
+    ingredient = relationship("Ingredient", back_populates="pizza_ingredients")
+
 
 class Type(IntEnum):
     GROUP = 0
@@ -44,14 +58,13 @@ class Dough(IntEnum):
     THIN_DOUGH = 1
 
 class Pizza(Product):
-    __tablename__ = 'pizzas'
+    __tablename__ = "pizzas"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey('products.id'), primary_key=True)
+    id: Mapped[UUID_PY] = mapped_column(UUID(as_uuid=True), ForeignKey("products.id"), primary_key=True)
     dough: Mapped[Dough] = mapped_column(ENUM(Dough, name="dough", nullable=True), default=Dough.THICK_DOUGH)
 
-    __mapper_args__ = {
-        'polymorphic_identity': Type.PIZZA,
-    }
+    pizza_ingredients = relationship("PizzaIngredient", back_populates="pizza")
+
 
 class ProductVariant(Base):
     __tablename__ = 'product_variants'

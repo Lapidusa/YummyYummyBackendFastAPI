@@ -5,8 +5,8 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.models import Product, Category
-from app.db.models.products import Type, Pizza, Dough, ProductVariant
+from app.db.models import Product, Category, Ingredient
+from app.db.models.products import Type, Pizza, Dough, ProductVariant, PizzaIngredient
 from app.schemas.product import ProductCreate, PizzaCreate, ProductUpdate, PizzaUpdate
 from typing import Union, cast
 
@@ -51,12 +51,30 @@ class ProductService:
     if product_data.type == Type.PIZZA:
       obj = Pizza(
         category_id=product_data.category_id,
-        name = product_data.name,
-        description = product_data.description,
-        position = max_position + 1,
-        is_available = product_data.is_available,
-        dough = Dough.THICK_DOUGH
+        name=product_data.name,
+        description=product_data.description,
+        position=max_position + 1,
+        is_available=product_data.is_available,
+        dough=Dough.THICK_DOUGH
       )
+      db.add(obj)
+      await db.flush()
+
+      ingredient_ids = [i.ingredient_id for i in product_data.ingredients]
+      ingredients_result = await db.execute(
+        select(Ingredient).where(Ingredient.id.in_(ingredient_ids))
+      )
+      ingredients_map = {i.id: i for i in ingredients_result.scalars()}
+
+      obj.pizza_ingredients = [
+        PizzaIngredient(
+          pizza=obj,
+          ingredient=ingredients_map[i.ingredient_id],
+          is_deleted=i.is_deleted
+        )
+        for i in product_data.ingredients if i.ingredient_id in ingredients_map
+      ]
+
     else:
       obj = Product(
         category_id=product_data.category_id,
@@ -97,9 +115,26 @@ class ProductService:
     product.category_id = product_data.category_id
 
     if isinstance(product, Pizza) and isinstance(product_data, PizzaUpdate):
-      product.dough = product_data.dough
+      product.dough = product_data.THICK_DOUGH
+      product.pizza_ingredients.clear()
+
+      ingredient_ids = [i.ingredient_id for i in product_data.ingredients]
+      ingredients_result = await db.execute(
+        select(Ingredient).where(Ingredient.id.in_(ingredient_ids))
+      )
+      ingredients_map = {i.id: i for i in ingredients_result.scalars()}
+
+      product.pizza_ingredients = [
+        PizzaIngredient(
+          pizza=product,
+          ingredient=ingredients_map[i.ingredient_id],
+          is_deleted=i.is_deleted
+        )
+        for i in product_data.ingredients if i.ingredient_id in ingredients_map
+      ]
     variants = cast(list[ProductVariant], product.variants)
     variants.clear()
+
     for variant_data in product_data.variants:
       variant = ProductVariant(
         size=variant_data.size,

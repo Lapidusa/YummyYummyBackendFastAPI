@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import SecurityMiddleware
 from app.db import get_db
-from app.db.models.products import Type
 from app.schemas.product import ProductCreate, ProductUpdate, PizzaUpdate
 from app.services.product_service import ProductService
 from app.services.response_utils import ResponseUtils
@@ -60,7 +59,7 @@ async def create_product(
     with open(save_path, "wb") as f:
       f.write(await image.read())
 
-    variants_data[i]["image_url"] = f"/media/products/{image.filename}"
+    variants_data[i]["image"] = f"/media/products/{image.filename}"
 
   parsed_data["variants"] = variants_data
 
@@ -92,11 +91,13 @@ async def update_product(
 
   image_index = 0
   for i, variant in enumerate(variants_data):
-    if not variant.get("image_url") and image_index >= len(images):
-      return ResponseUtils.error(f"Для варианта {i + 1} не указано изображение")
+    # если изображение поменялось — берём из images
+    if variant.get("changed_image"):
+      if image_index >= len(images):
+        return ResponseUtils.error(f"Нет изображения для варианта {i + 1}")
 
-    if image_index < len(images):
       image = images[image_index]
+
       if not image.filename.lower().endswith((".jpg", ".jpeg", ".png")):
         return ResponseUtils.error(f"Недопустимый формат изображения: {image.filename}")
 
@@ -106,9 +107,18 @@ async def update_product(
       with open(save_path, "wb") as f:
         f.write(await image.read())
 
-      variant["image_url"] = f"/media/products/{image.filename}"
+      variant["image"] = f"/media/products/{image.filename}"
       image_index += 1
 
+    # если не поменялось, но image всё равно строка — оставляем как есть
+    elif isinstance(variant.get("image"), str):
+      if not variant["image"].startswith("/media/products/"):
+        variant["image"] = f"/media/products/{variant['image']}"
+
+    else:
+      return ResponseUtils.error(f"Для варианта {i + 1} не указано изображение")
+
+  print("Final variants data to be passed into schema:", variants_data)
   parsed_data["variants"] = variants_data
 
   try:

@@ -13,10 +13,10 @@ class Roles(str, Enum):
 
 class UpdateUserForm(BaseModel):
   phone_number: Optional[str]
-  email: Optional[EmailStr]
-  name: Optional[str]
-  date_of_birth: Optional[datetime]
-  image_url: Optional[str]
+  email: Optional[EmailStr] = None
+  name: Optional[str] = None
+  date_of_birth: Optional[datetime] = None
+  image_url: Optional[str] = None
 
   @classmethod
   def as_form(
