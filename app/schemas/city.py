@@ -2,7 +2,7 @@ import uuid
 from typing import List
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic_settings import BaseModel, Field
 
 class City(BaseModel):
 

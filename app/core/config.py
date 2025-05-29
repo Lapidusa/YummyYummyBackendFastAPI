@@ -1,6 +1,7 @@
 import os
 
-from pydantic import Field, BaseSettings, field_validator
+from pydantic_settings  import  BaseSettings
+from pydantic import Field, field_validator
 from dotenv import load_dotenv, find_dotenv
 
 load_dotenv(find_dotenv())
