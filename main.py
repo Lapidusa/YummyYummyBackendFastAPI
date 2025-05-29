@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(default_response_class=ORJSONResponse)
 
-origins = ["http://localhost", "http://localhost:3000"]
+origins = ["http://localhost", "http://localhost:3000", "http://192.168.0.47"]
 
 app.add_middleware(
     CORSMiddleware,
