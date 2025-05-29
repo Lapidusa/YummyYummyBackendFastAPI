@@ -8,7 +8,7 @@ from starlette.staticfiles import StaticFiles
 from app.db.session import SessionLocal
 from app.routers import main_router
 from app.utils import create_admin
-
+from app.webhook import router as webhook_router
 load_dotenv(find_dotenv())
 logging.basicConfig(filename="logs/app.log", level=logging.INFO, format="%(asctime)s:%(levelname)s:%(message)s")
 logger = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ app.add_middleware(
 
 app.include_router(main_router)
 
+app.include_router(webhook_router)
 app.mount("/media", StaticFiles(directory="media"), name="media")
 @app.get("/", include_in_schema=False)
 def read_root():

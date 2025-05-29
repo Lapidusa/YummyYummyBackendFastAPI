@@ -1,9 +1,6 @@
 from fastapi import APIRouter, Request
 import subprocess
-import json
-
 router = APIRouter()
-
 @router.post("/webhook")
 async def handle_webhook(request: Request):
     payload = await request.json()
