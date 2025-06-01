@@ -6,13 +6,13 @@ from uuid import UUID
 class IngredientService:
   @staticmethod
   async def get_all(db: AsyncSession):
-    result = await db.execute(select(Ingredient).where(Ingredient.is_deleted == False))
+    result = await db.execute(select(Ingredient))
     return result.scalars().all()
 
   @staticmethod
   async def get_by_id(ingredient_id: UUID, db: AsyncSession):
     result = await db.execute(
-      select(Ingredient).where(Ingredient.id == ingredient_id, Ingredient.is_deleted == False)
+      select(Ingredient).where(Ingredient.id == ingredient_id)
     )
     return result.scalar_one_or_none()
 
@@ -28,8 +28,6 @@ class IngredientService:
   async def update(ingredient_id: UUID, update_data, db: AsyncSession):
     result = await db.execute(select(Ingredient).where(Ingredient.id == ingredient_id))
     ingredient = result.scalar_one_or_none()
-    if not ingredient or ingredient.is_deleted:
-      return None
     for field, value in update_data.items():
       setattr(ingredient, field, value)
     await db.commit()
@@ -42,6 +40,5 @@ class IngredientService:
     ingredient = result.scalar_one_or_none()
     if not ingredient:
       return None
-    ingredient.is_deleted = True
     await db.commit()
     return ingredient

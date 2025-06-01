@@ -33,10 +33,8 @@ class SmsService:
 
     success = await connect.set_data_with_expiry(phone_number, verification_code, 5)
     if not success:
-        print("❌ Не удалось сохранить код в Redis")
         return {"dev_bypass": True}
 
-    print(f"📨 Код подтверждения для {phone_number}: {verification_code}")
     return {"message": "Код успешно сохранён", "code": verification_code}
 
       # message = f"Ваш код подтверждения: {verification_code}. Никому не сообщайте код."

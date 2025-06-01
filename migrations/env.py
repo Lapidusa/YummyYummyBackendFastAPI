@@ -13,7 +13,7 @@ from app.core.config import settings
 from app.db.models import *
 
 config = context.config
-config.set_main_option('sqlalchemy.url', os.getenv('DATABASE_URL'))
+config.set_main_option('sqlalchemy.url', settings.DATABASE_URL)
 load_dotenv(find_dotenv())
 database_url = os.getenv("DATABASE_URL")
 # Настройка логирования
@@ -34,7 +34,9 @@ def render_item(obj_type, obj, autogen_context):
 
 
 def include_object(object, name, type_, reflected, compare_to):
-  # Stop making 'index' for geometry column
+  if type_ == "table" and name in ("us_lex", "us_gaz", "us_rules", "pointcloud_formats"):
+    return False
+
   if type_ == "index":
     if len(object.expressions) == 1:
       try:

@@ -5,6 +5,8 @@ from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
+
+from app.core.config import settings
 from app.db.session import SessionLocal
 from app.routers import main_router
 from app.utils import create_admin
@@ -24,7 +26,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 app.include_router(main_router)
 
 app.include_router(webhook_router)
