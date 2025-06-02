@@ -7,6 +7,7 @@ class IngredientService:
   @staticmethod
   async def get_all(db: AsyncSession):
     result = await db.execute(select(Ingredient))
+
     return result.scalars().all()
 
   @staticmethod
@@ -20,8 +21,10 @@ class IngredientService:
   async def create(ingredient_data, db: AsyncSession):
     ingredient = Ingredient(**ingredient_data)
     db.add(ingredient)
+
     await db.commit()
     await db.refresh(ingredient)
+
     return ingredient
 
   @staticmethod
@@ -30,8 +33,10 @@ class IngredientService:
     ingredient = result.scalar_one_or_none()
     for field, value in update_data.items():
       setattr(ingredient, field, value)
+
     await db.commit()
     await db.refresh(ingredient)
+
     return ingredient
 
   @staticmethod
@@ -40,5 +45,8 @@ class IngredientService:
     ingredient = result.scalar_one_or_none()
     if not ingredient:
       return None
+
+    await db.delete(ingredient)
     await db.commit()
+
     return ingredient

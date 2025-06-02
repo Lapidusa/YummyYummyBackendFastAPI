@@ -1,12 +1,10 @@
-import uuid
-from typing import List
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 class City(BaseModel):
 
-  name: str = Field(..., description="Название города")  # Название города
+  name: str = Field(..., description="Название города")
 
   class Config:
     from_attributes = True
@@ -15,5 +13,5 @@ class CreateCity(City):
   pass
 
 class UpdateCity(City):
-  id: UUID = Field(..., description="Уникальный идентификатор города")  # Уникальный идентификатор города
+  id: UUID = Field(..., description="Уникальный идентификатор города")
   pass

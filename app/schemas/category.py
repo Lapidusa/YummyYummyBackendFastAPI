@@ -1,6 +1,12 @@
+from typing import List
+
 from pydantic import BaseModel, Field
 from uuid import UUID
 from enum import IntEnum
+
+from app.db.models import Product
+from app.schemas.product import ProductResponse
+
 
 class TypeCategory(IntEnum):
   GROUP = 0
@@ -12,7 +18,7 @@ class Category(BaseModel):
   store_id: UUID = Field(..., description="ID магазина, к которому привязана категория")
   is_available: bool = Field(..., description="Доступна ли категория")
   type: TypeCategory = Field(..., description="Тип категории (group, pizza, constructor)")
-
+  products: List["ProductResponse"]
   class Config:
       from_attributes = True
 

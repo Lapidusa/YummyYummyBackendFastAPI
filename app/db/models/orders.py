@@ -8,7 +8,6 @@ from sqlalchemy.orm import Mapped, relationship, mapped_column
 
 from app.db import Base
 
-
 class OrderStatus(IntEnum):
   PENDING = 0
   IN_PROGRESS = 1

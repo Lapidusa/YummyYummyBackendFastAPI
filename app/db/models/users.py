@@ -1,13 +1,14 @@
 from typing import List
 
 from sqlalchemy import Column, String, DateTime, Integer, func, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, ENUM
+from sqlalchemy.dialects.postgresql import ENUM, UUID as PGUUID
 import uuid
 from enum import Enum as PyEnum
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+from app.db.models.orders import Order
 
 class Roles(PyEnum):
     USER = 0
@@ -19,7 +20,7 @@ class Roles(PyEnum):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     phone_number = Column(String(15), nullable=False, unique=True)
     email = Column(String(255), nullable=True, unique=True)
     name = Column(String(255), nullable=True)
@@ -37,12 +38,12 @@ class User(Base):
 class UserAddress(Base):
     __tablename__ = "user_addresses"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"))
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), ForeignKey("users.id"))
     street: Mapped[str] = mapped_column(String)
     house: Mapped[str] = mapped_column(String)
     apartment: Mapped[str | None] = mapped_column(String, nullable=True)
-    label: Mapped[str | None] = mapped_column(String, nullable=True)  # например "Дом", "Офис"
+    label: Mapped[str | None] = mapped_column(String, nullable=True)
 
     user = relationship("User", back_populates="addresses")
 

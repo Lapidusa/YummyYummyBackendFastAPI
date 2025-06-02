@@ -1,20 +1,65 @@
-from enum import Enum as PyEnum, IntEnum
+from enum import IntEnum
 
-from pydantic import BaseModel, model_validator, Field
+from pydantic import BaseModel, model_validator
 from typing import List, Optional, Literal
 from uuid import UUID
-import re
-from app.db.models.products import Type, Dough
+from app.db.models.products import Dough
 
 class TypeProduct(IntEnum):
   GROUP = 0
   CONSTRUCTOR = 1
   PIZZA = 2
 
-class PizzaSize(PyEnum):
-  S = 0
-  M = 1
-  L = 2
+class IngredientResponse(BaseModel):
+  id: UUID
+  name: str
+  image: Optional[str]
+  overlay_image: Optional[str]
+  price: int
+
+  model_config = {"from_attributes": True}
+
+class ProductVariantResponse(BaseModel):
+  id: UUID
+  size: str
+  price: float
+  weight: float
+  calories: Optional[float]
+  proteins: Optional[float]
+  fats: Optional[float]
+  carbohydrates: Optional[float]
+  image: Optional[str]
+  is_available: bool
+
+  model_config = {"from_attributes": True}
+
+class ProductResponse(BaseModel):
+  id: UUID
+  name: str
+  description: Optional[str]
+  category_id: UUID
+  position: int
+  type: TypeProduct
+  is_available: bool
+
+  variants: List[ProductVariantResponse] = []
+  ingredients: List[IngredientResponse] = []
+
+  model_config = {"from_attributes": True}
+
+  @model_validator(mode="after")
+  def _fill_ingredients(self):
+
+    orm_obj = getattr(self, "__pydantic_original__", None)
+    if orm_obj is None:
+      return
+
+    ingr_list: List[IngredientResponse] = []
+    if hasattr(orm_obj, "pizza_ingredients"):
+      for pi in orm_obj.pizza_ingredients:
+        if not pi.is_deleted and pi.ingredient:
+          ingr_list.append(IngredientResponse.model_validate(pi.ingredient))
+    object.__setattr__(self, "ingredients", ingr_list)
 
 class ProductVariantCreate(BaseModel):
     size: str
@@ -62,7 +107,7 @@ class PizzaCreate(ProductBase):
   ingredients: List[IngredientInPizza]
 
 class ProductCreate(ProductBase):
-  type: TypeProduct  # обычный
+  type: TypeProduct
   description: Optional[str] = None
 
 class PizzaUpdate(PizzaCreate):
