@@ -1,15 +1,19 @@
 from typing import Optional
 from datetime import datetime
-from enum import Enum
-
+from uuid import UUID
 from fastapi.params import Form
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, EmailStr
 
-class Roles(str, Enum):
-  USER = 0
-  ADMIN = 1
-  COURIER = 2
-  MANAGER = 3
+from app.db.models.users import Roles
+
+class UserPayload(BaseModel):
+  phone_number: str
+  name: str
+  role: Roles
+
+class UserPayloadWithId(UserPayload):
+  id: UUID
+  pass
 
 class UpdateUserForm(BaseModel):
   phone_number: Optional[str]

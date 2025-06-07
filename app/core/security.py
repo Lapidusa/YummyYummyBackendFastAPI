@@ -33,7 +33,6 @@ class SecurityMiddleware:
     if token in TOKEN_BLACKLIST:
       return ResponseUtils.error(message="Токен отозван")
 
-
     try:
       payload = jwt.decode(
         token,

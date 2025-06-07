@@ -49,17 +49,16 @@ class ProductResponse(BaseModel):
 
   @model_validator(mode="after")
   def _fill_ingredients(self):
-
-    orm_obj = getattr(self, "__pydantic_original__", None)
-    if orm_obj is None:
-      return
-
+    orm_obj = getattr(self, "__pydantic_original__", self)
     ingr_list: List[IngredientResponse] = []
+
     if hasattr(orm_obj, "pizza_ingredients"):
       for pi in orm_obj.pizza_ingredients:
         if not pi.is_deleted and pi.ingredient:
           ingr_list.append(IngredientResponse.model_validate(pi.ingredient))
+
     object.__setattr__(self, "ingredients", ingr_list)
+    return self
 
 class ProductVariantCreate(BaseModel):
     size: str
@@ -97,7 +96,7 @@ class ProductBase(BaseModel):
     return self
 
 class IngredientInPizza(BaseModel):
-  ingredient_id: int
+  ingredient_id: UUID
   is_deleted: Optional[bool] = False
 
 class PizzaCreate(ProductBase):

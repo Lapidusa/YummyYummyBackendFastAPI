@@ -5,17 +5,16 @@ from fastapi.params import Depends, Header
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, with_polymorphic
 
 from app.core.security import SecurityMiddleware
 from app.db import get_db
 from app.db.models import City as CityModel, Store, Category
 from app.db.models.products import PizzaIngredient, Pizza, Product
-from app.schemas.city import City as CitySchema, CreateCity, UpdateCity
+from app.schemas.city import City as CitySchema, CreateCity, UpdateCity, City
 from app.services.response_utils import ResponseUtils
 from app.services.city_service import CityService
 router = APIRouter()
-
 @router.get("/all-cities/")
 async def get_all_city_endpoint(db: AsyncSession = Depends(get_db)):
   cities = await CityService.get_all_cities(db)
@@ -36,14 +35,21 @@ async def get_city(city_id: UUID, db: AsyncSession = Depends(get_db)):
 async def get_city_with_all( city_id: UUID, db: AsyncSession = Depends(get_db)):
   stmt = (
     select(CityModel)
-    .where(CityModel.id == city_id)# type: ignore
+    .where(CityModel.id == city_id)
     .options(
       selectinload(CityModel.stores)
       .selectinload(Store.categories)
-      .selectinload(Category.products),
-      # selectinload(Category.products.of_type(Pizza))
-      selectinload(Pizza.pizza_ingredients)
-      .selectinload(PizzaIngredient.ingredient)
+      .selectinload(Category.products.of_type(Pizza))
+      .selectinload(Pizza.variants),
+      selectinload(CityModel.stores)
+      .selectinload(Store.categories)
+      .selectinload(Category.products.of_type(Pizza))
+      .selectinload(Pizza.pizza_ingredients)
+      .selectinload(PizzaIngredient.ingredient),
+      selectinload(CityModel.stores)
+      .selectinload(Store.categories)
+      .selectinload(Category.products.of_type(Product))
+      .selectinload(Product.variants)
     )
   )
   result = await db.execute(stmt)
@@ -51,7 +57,7 @@ async def get_city_with_all( city_id: UUID, db: AsyncSession = Depends(get_db)):
   if not city_obj:
     raise HTTPException(status_code=404, detail="Город не найден")
 
-  return ResponseUtils.success(data=CitySchema.model_validate(city_obj))
+  return ResponseUtils.success(data=City.model_validate(city_obj))
 @router.post("/")
 async def create_city(
   city_data: CreateCity,

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import SecurityMiddleware
 from app.db import get_db
-from app.schemas.product import ProductCreate, ProductUpdate, PizzaUpdate
+from app.schemas.product import ProductCreate, ProductUpdate, PizzaUpdate, TypeProduct, PizzaCreate
 from app.services.product_service import ProductService
 from app.services.response_utils import ResponseUtils
 
@@ -45,26 +45,30 @@ async def create_product(
   except json.JSONDecodeError:
     return ResponseUtils.error("Некорректный формат JSON данных")
 
-  if len(images) != len(variants_data):
-    return ResponseUtils.error("Количество изображений должно соответствовать количеству вариантов")
-
-  # Сохраняем изображения и добавляем image_url в варианты
-  for i, image in enumerate(images):
-    if not image.filename.lower().endswith((".jpg", ".jpeg", ".png")):
-      return ResponseUtils.error(f"Недопустимый формат изображения: {image.filename}")
-
-    save_path = f"media/products/{image.filename}"
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-    with open(save_path, "wb") as f:
-      f.write(await image.read())
-
-    variants_data[i]["image"] = f"/media/products/{image.filename}"
-
-  parsed_data["variants"] = variants_data
-
   try:
-    product_data = ProductCreate(**parsed_data)
+    if len(images) != len(variants_data):
+      return ResponseUtils.error("Количество изображений должно соответствовать количеству вариантов")
+
+    for i, image in enumerate(images):
+      if not image.filename.lower().endswith((".jpg", ".jpeg", ".png")):
+        return ResponseUtils.error(f"Недопустимый формат изображения: {image.filename}")
+
+      save_path = f"media/products/{image.filename}"
+      os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+      with open(save_path, "wb") as f:
+        f.write(await image.read())
+
+      variants_data[i]["image"] = f"/media/products/{image.filename}"
+
+    parsed_data["variants"] = variants_data
+    product_type = parsed_data.get("type")
+
+    if product_type == TypeProduct.PIZZA:
+      product_data = PizzaCreate(**parsed_data)
+    else:
+      product_data = ProductCreate(**parsed_data)
+
   except Exception as e:
     return ResponseUtils.error(f"Ошибка валидации: {str(e)}")
 

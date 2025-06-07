@@ -3,14 +3,14 @@ from typing import List
 from sqlalchemy import Column, String, DateTime, Integer, func, ForeignKey
 from sqlalchemy.dialects.postgresql import ENUM, UUID as PGUUID
 import uuid
-from enum import Enum as PyEnum
+from enum import IntEnum
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 from app.db.models.orders import Order
 
-class Roles(PyEnum):
+class Roles(IntEnum):
     USER = 0
     COURIER = 1
     COOK = 2

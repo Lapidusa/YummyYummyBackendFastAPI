@@ -1,11 +1,14 @@
 import logging
 import os
+from uuid import UUID
+from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, UploadFile
-from fastapi.params import File
+from fastapi import APIRouter, Depends, Header, UploadFile, Query
+from fastapi.params import File, Path
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.schemas.user import UpdateUserForm
+from app.schemas.user import UpdateUserForm, UserPayload, UserPayloadWithId
 from app.services.cache_service import ConnectRedis
 from app.services.response_utils import ResponseUtils
 from app.services.sms_service import SmsService
@@ -17,6 +20,7 @@ from app.db import get_db
 sms_service = SmsService()
 router = APIRouter()
 connect = ConnectRedis()
+
 class RegisterOrLoginRequest(BaseModel):
   phone_number: str
 
@@ -26,6 +30,7 @@ class VerifyCodeRequest(BaseModel):
 
 logging.basicConfig(filename="logs/app.log", level=logging.INFO, format="%(asctime)s:%(levelname)s:%(message)s")
 logger = logging.getLogger(__name__)
+
 @router.post("/send-sms/")
 async def send_sms(request: RegisterOrLoginRequest):
   response = await sms_service.send_sms(request.phone_number)
@@ -61,6 +66,29 @@ async def verify_code(request: VerifyCodeRequest, db: AsyncSession = Depends(get
   else:
     return ResponseUtils.error(message="Неверный код или срок действия кода истёк")
 
+@router.get("/get-all-users/")
+async def get_all_users(token: str = Header(alias="token"), db: AsyncSession = Depends(get_db)):
+  if token is None:
+    return ResponseUtils.error(message="Токен не предоставлен")
+  await SecurityMiddleware.is_admin(token, db)
+  users = await UserService.get_all_users(db)
+  return ResponseUtils.success(users=users)
+
+@router.post("/create-user/")
+async def create_user(request: UserPayload, token: str = Header(alias="token"), db: AsyncSession = Depends(get_db)):
+  if token is None:
+    return ResponseUtils.error(message="Токен не предоставлен")
+  await SecurityMiddleware.is_admin(token, db)
+
+  try:
+    return ResponseUtils.success(user=await UserService.create_for_admin(db, request))
+  except IntegrityError as e:
+    if "users_phone_number_key" in str(e.orig):
+      return ResponseUtils.error(message="Пользователь с таким номером телефона уже существует.")
+    return ResponseUtils.error(message="Произошла ошибка при создании пользователя.")
+  except Exception as e:
+    return ResponseUtils.error(message=str(e))
+
 @router.put("/update-user/")
 async def update_user(
   form_data: UpdateUserForm = Depends(UpdateUserForm.as_form),
@@ -70,15 +98,20 @@ async def update_user(
 
   image_url = None
   if image:
-    if not image.filename.lower().endswith((".png", ".jpg", ".jpeg")):
+    filename = os.path.basename(image.filename)
+
+    if not filename.lower().endswith((".png", ".jpg", ".jpeg")):
       return ResponseUtils.error(message="Только PNG и JPG изображения")
 
-    save_path = f"media/avatars/{image.filename}"
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    save_dir = os.path.join("media", "avatars")
+    os.makedirs(save_dir, exist_ok=True)
+
+    save_path = os.path.join(save_dir, filename)
+
     with open(save_path, "wb") as f:
       content = await image.read()
       f.write(content)
-    image_url = f"/media/avatars/{image.filename}"
+    image_url = f"/media/avatars/{filename}"
 
   update_data = UpdateUserForm(**form_data.model_dump())
   update_data.image_url = image_url
@@ -88,6 +121,30 @@ async def update_user(
     return ResponseUtils.success(user = new_user)
   else:
     return ResponseUtils.error(message="Не найден пользователь")
+
+@router.put("/update-admin")
+async def update_admin(user_data: UserPayloadWithId, token: str = Header(alias="token"), db: AsyncSession = Depends(get_db)):
+  if token is None:
+    return ResponseUtils.error(message="Токен не предоставлен")
+  await SecurityMiddleware.is_admin(token, db)
+
+  res = await UserService.update_user_for_admin(db, user_data)
+  if isinstance(res, dict):
+    return res
+  return ResponseUtils.success(user=res)
+
+@router.delete("/delete-user/{user_id}")
+async def delete_user(
+    user_id: UUID,
+    token:str=Header(None, alias="token"),
+    db: AsyncSession = Depends(get_db))-> dict:
+  if token is None and user_id is None:
+    return ResponseUtils.error(message="Ошибка валидации, передайте одно значение")
+  if user_id is not None:
+    await SecurityMiddleware.is_admin(token, db)
+    return ResponseUtils.success(res=await UserService.delete_user_by_id(db, user_id))
+  else:
+    return ResponseUtils.success(res=await UserService.delete_user_by_token(db, token))
 
 @router.get("/get-user/")
 async def get_user(token: str = Header(alias="token"), db: AsyncSession = Depends(get_db)):

@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.models import Product, Category, Ingredient
-from app.db.models.products import Type, Pizza, Dough, ProductVariant, PizzaIngredient
-from app.schemas.product import ProductCreate, PizzaCreate, ProductUpdate, PizzaUpdate
+from app.db.models.products import Type, Pizza, ProductVariant, PizzaIngredient
+from app.schemas.product import ProductCreate, PizzaCreate, ProductUpdate, PizzaUpdate, ProductResponse
 from typing import Union, cast
 
 ProductUnionCreate = Union[ProductCreate, PizzaCreate]
@@ -42,20 +42,23 @@ class ProductService:
     return result.scalars().all()
 
   @staticmethod
-  async def create_product(db: AsyncSession, product_data: ProductUnionCreate) -> Product:
+  async def create_product(db: AsyncSession, product_data: ProductUnionCreate) -> dict:
     max_position_query = select(func.max(Product.position)).where(
-      Product.category_id==product_data.category_id
+      Product.category_id == product_data.category_id
     )
     result = await db.execute(max_position_query)
     max_position = result.scalar() or 0
+
     if product_data.type == Type.PIZZA:
+      assert isinstance(product_data, PizzaCreate)
       obj = Pizza(
         category_id=product_data.category_id,
         name=product_data.name,
         description=product_data.description,
         position=max_position + 1,
         is_available=product_data.is_available,
-        dough=Dough.THICK_DOUGH
+        dough=product_data.dough,
+        type=Type.PIZZA,
       )
       db.add(obj)
       await db.flush()
@@ -66,45 +69,70 @@ class ProductService:
       )
       ingredients_map = {i.id: i for i in ingredients_result.scalars()}
 
-      obj.pizza_ingredients = [
+      pizza_ingredients = [
         PizzaIngredient(
-          pizza=obj,
-          ingredient=ingredients_map[i.ingredient_id],
-          is_deleted=i.is_deleted
+          pizza_id=obj.id,
+          ingredient_id=i.ingredient_id,
+          is_deleted=i.is_deleted,
         )
-        for i in product_data.ingredients if i.ingredient_id in ingredients_map
+        for i in product_data.ingredients
       ]
-
+      db.add_all(pizza_ingredients)
     else:
       obj = Product(
         category_id=product_data.category_id,
-        name = product_data.name,
-        description = product_data.description,
-        position = max_position + 1,
-        is_available = product_data.is_available
+        name=product_data.name,
+        description=product_data.description,
+        position=max_position + 1,
+        is_available=product_data.is_available,
+        type=Type.GROUP,
       )
-    variants = cast(list[ProductVariant], obj.variants)
+      db.add(obj)
+      await db.flush()
 
-    # Добавляем варианты
     for variant_data in product_data.variants:
       variant = ProductVariant(
-        size = variant_data.size,
-        price = variant_data.price,
-        weight = variant_data.weight,
-        calories = variant_data.calories,
-        proteins = variant_data.proteins,
-        fats = variant_data.fats,
-        carbohydrates = variant_data.carbohydrates,
-        is_available = variant_data.is_available,
-        image = variant_data.image
+        size=variant_data.size,
+        price=variant_data.price,
+        weight=variant_data.weight,
+        calories=variant_data.calories,
+        proteins=variant_data.proteins,
+        fats=variant_data.fats,
+        carbohydrates=variant_data.carbohydrates,
+        is_available=variant_data.is_available,
+        image=variant_data.image,
+        product_id=obj.id
       )
-      variants.append(variant)
+      db.add(variant)
+      await db.refresh(obj, attribute_names=["variants"])
 
-    db.add(obj)
+      obj.variants = cast(list[ProductVariant], obj.variants)
+
     await db.commit()
-    await db.refresh(obj)
 
-    return obj
+    if product_data.type == Type.PIZZA:
+      stmt = (
+        select(Pizza)
+        .where(Product.id == obj.id)
+        .options(
+          selectinload(Pizza.variants),
+          selectinload(Pizza.pizza_ingredients).selectinload(PizzaIngredient.ingredient),
+        )
+      )
+    else:
+      stmt = (
+        select(Product)
+        .where(Product.id == obj.id)
+        .options(
+          selectinload(Product.variants),
+        )
+      )
+    result = await db.execute(stmt)
+    full_obj = result.scalar_one()
+    try:
+      return ProductResponse.model_validate(full_obj).model_dump()
+    except Exception as e:
+      raise e
 
   @staticmethod
   async def update_product(db: AsyncSession, product_id: UUID, product_data: ProductUnionUpdate) -> Product:
@@ -113,6 +141,7 @@ class ProductService:
     product.description = product_data.description
     product.is_available = product_data.is_available
     product.category_id = product_data.category_id
+    product.type = product_data.type
 
     if isinstance(product, Pizza) and isinstance(product_data, PizzaUpdate):
       product.dough = product_data.THICK_DOUGH

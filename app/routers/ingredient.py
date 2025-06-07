@@ -41,19 +41,21 @@ async def create_ingredient(ingredient_data_json: str = Form(...), images: Optio
   overlay_path: Optional[str] = None
 
   if images:
+    os.makedirs("media/ingredients", exist_ok=True)
+    os.makedirs("media/ingredients/overlays", exist_ok=True)
     if len(images) >= 1:
       main_file = images[0]
-      main_location = f"/media/ingredients/{main_file.filename}"
+      main_location = os.path.join("media", "ingredients", main_file.filename)
       with open(main_location, "wb") as f:
         f.write(await main_file.read())
-      image_path = main_location
+      image_path = f"/{main_location.replace(os.sep, '/')}"
 
     if len(images) >= 2:
       overlay_file = images[1]
-      overlay_location = f"/media/ingredients/overlays/{overlay_file.filename}"
+      overlay_location = os.path.join("media", "ingredients", "overlays", overlay_file.filename)
       with open(overlay_location, "wb") as f:
         f.write(await overlay_file.read())
-      overlay_path = overlay_location
+      overlay_path = f"/{overlay_location.replace(os.sep, '/')}"
   ingredient_dict = {
     "name": name,
     "image": image_path,
