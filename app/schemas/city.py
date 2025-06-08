@@ -3,6 +3,9 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
 
+from app.schemas.product import IngredientResponse
+
+
 class TypeCategory(IntEnum):
   GROUP = 0
   PIZZA = 1
@@ -16,13 +19,13 @@ class City(BaseModel):
     id: UUID
     name: str
     stores: list["Store"]
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
 
 class Store(BaseModel):
     id: UUID
     categories: list["Category"]
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = {"from_attributes": True}
 
 class Category(BaseModel):
     id: UUID
@@ -38,6 +41,7 @@ class Product(BaseModel):
     name: str
     type: int
     position: int
+    description: str
     is_available: bool
     variants: list["ProductVariant"] | None = None
 
@@ -45,7 +49,7 @@ class Product(BaseModel):
 
 class Pizza(Product):
     id: UUID
-    pizza_ingredients: list["PizzaIngredient"] | None = None
+    ingredients: list[IngredientResponse] = []
     dough: Dough
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,7 +1,6 @@
 import uuid
-from typing import Optional
 from uuid import UUID as UUID_PY
-from sqlalchemy import String, Boolean, UUID, Integer
+from sqlalchemy import String, UUID, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -19,4 +18,4 @@ class Ingredient(Base):
   image: Mapped[str | None] = mapped_column(String)
   overlay_image: Mapped[str] = mapped_column(String)
   price: Mapped[int] = mapped_column(Integer)
-  pizza_ingredients = relationship("PizzaIngredient", back_populates="ingredient")
+  pizza_ingredients = relationship("PizzaIngredient", back_populates="ingredient",cascade="all, delete-orphan", passive_deletes=True)

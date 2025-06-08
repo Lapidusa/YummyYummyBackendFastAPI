@@ -1,17 +1,22 @@
 import os
 from uuid import UUID
 
-from sqlalchemy import select, func
+from fastapi import HTTPException
+from pydantic import Field
+from sqlalchemy import select, func, delete, insert, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.models import Product, Category, Ingredient
-from app.db.models.products import Type, Pizza, ProductVariant, PizzaIngredient
+from app.db.models.products import Type, Pizza, ProductVariant, PizzaIngredient, Dough
 from app.schemas.product import ProductCreate, PizzaCreate, ProductUpdate, PizzaUpdate, ProductResponse
-from typing import Union, cast
+from typing import Union, cast, Annotated
 
 ProductUnionCreate = Union[ProductCreate, PizzaCreate]
-ProductUnionUpdate = Union[ProductUpdate, PizzaUpdate]
+ProductUnionUpdate = Annotated[
+  Union[PizzaUpdate, ProductUpdate],
+  Field(discriminator="type")
+]
 class ProductService:
 
   @staticmethod
@@ -57,18 +62,13 @@ class ProductService:
         description=product_data.description,
         position=max_position + 1,
         is_available=product_data.is_available,
-        dough=product_data.dough,
+        dough=Dough.THICK_DOUGH,
         type=Type.PIZZA,
       )
       db.add(obj)
       await db.flush()
 
       ingredient_ids = [i.ingredient_id for i in product_data.ingredients]
-      ingredients_result = await db.execute(
-        select(Ingredient).where(Ingredient.id.in_(ingredient_ids))
-      )
-      ingredients_map = {i.id: i for i in ingredients_result.scalars()}
-
       pizza_ingredients = [
         PizzaIngredient(
           pizza_id=obj.id,
@@ -101,7 +101,6 @@ class ProductService:
         carbohydrates=variant_data.carbohydrates,
         is_available=variant_data.is_available,
         image=variant_data.image,
-        product_id=obj.id
       )
       db.add(variant)
       await db.refresh(obj, attribute_names=["variants"])
@@ -135,49 +134,105 @@ class ProductService:
       raise e
 
   @staticmethod
-  async def update_product(db: AsyncSession, product_id: UUID, product_data: ProductUnionUpdate) -> Product:
-    product = await ProductService.get_product_by_id(db, product_id)
+  async def update_product(
+      db: AsyncSession,
+      product_id: UUID,
+      product_data: ProductUnionUpdate
+  ) -> Product:
+    # A) Получаем базовый Product
+    stmt = select(Product).where(Product.id == product_id)
+    product = (await db.execute(stmt)).scalar_one_or_none()
+    if product is None:
+      raise HTTPException(404, "Продукт не найден")
+
+    # B) Общие поля + flush
     product.name = product_data.name
     product.description = product_data.description
     product.is_available = product_data.is_available
     product.category_id = product_data.category_id
     product.type = product_data.type
+    await db.flush()
 
-    if isinstance(product, Pizza) and isinstance(product_data, PizzaUpdate):
-      product.dough = product_data.THICK_DOUGH
-      product.pizza_ingredients.clear()
-
-      ingredient_ids = [i.ingredient_id for i in product_data.ingredients]
-      ingredients_result = await db.execute(
-        select(Ingredient).where(Ingredient.id.in_(ingredient_ids))
+    # C) Если пицца — работаем с дочерней таблицей pizzas
+    if isinstance(product_data, PizzaUpdate):
+      # 1. Получаем или создаём Pizza (joined-table)
+      existing = await db.execute(
+        select(Pizza.id).where(Pizza.id == product_id)
       )
-      ingredients_map = {i.id: i for i in ingredients_result.scalars()}
-
-      product.pizza_ingredients = [
-        PizzaIngredient(
-          pizza=product,
-          ingredient=ingredients_map[i.ingredient_id],
-          is_deleted=i.is_deleted
+      if existing.scalar_one_or_none() is None:
+        await db.execute(
+          insert(Pizza.__table__)
+          .values(id=product_id, dough=product_data.dough)
         )
-        for i in product_data.ingredients if i.ingredient_id in ingredients_map
-      ]
-    variants = cast(list[ProductVariant], product.variants)
-    variants.clear()
+        await db.flush()
+      else:
+        # если уже есть — обновляем dough
+        await db.execute(
+          update(Pizza.__table__)
+          .where(Pizza.__table__.c.id == product_id)
+          .values(dough=product_data.dough)
+        )
+        await db.flush()
 
-    for variant_data in product_data.variants:
-      variant = ProductVariant(
-        size=variant_data.size,
-        price=variant_data.price,
-        weight=variant_data.weight,
-        calories=variant_data.calories,
-        proteins=variant_data.proteins,
-        fats=variant_data.fats,
-        carbohydrates=variant_data.carbohydrates,
-        is_available=variant_data.is_available,
-        image=variant_data.image
+      # C2) Обновляем ингредиенты: delete + insert
+      await db.execute(
+        delete(PizzaIngredient)
+        .where(PizzaIngredient.pizza_id == product_id)
       )
-      variants.append(variant)
+      await db.flush()
 
+      ids = [ing.ingredient_id for ing in product_data.ingredients]
+      res = await db.execute(
+        select(Ingredient).where(Ingredient.id.in_(ids))
+      )
+      ingr_map = {i.id: i for i in res.scalars()}
+
+      new_assocs = [
+        PizzaIngredient(
+          pizza_id=product_id,
+          ingredient_id=ing.ingredient_id,
+          is_deleted=ing.is_deleted
+        )
+        for ing in product_data.ingredients
+        if ing.ingredient_id in ingr_map
+      ]
+      db.add_all(new_assocs)
+      await db.flush()
+
+    else:
+      # D) Конвертация обратно: чистим все pizza-данные
+      await db.execute(
+        delete(PizzaIngredient)
+        .where(PizzaIngredient.pizza_id == product_id)
+      )
+      await db.execute(
+        delete(Pizza).where(Pizza.id == product_id)
+      )
+      await db.flush()
+
+      # E) Обновляем варианты: delete + insert
+    await db.execute(
+      delete(ProductVariant)
+      .where(ProductVariant.product_id == product_id)
+    )
+    await db.flush()
+
+    for v in product_data.variants:
+      db.add(ProductVariant(
+        product_id=product_id,
+        size=v.size,
+        price=v.price,
+        weight=v.weight,
+        calories=v.calories,
+        proteins=v.proteins,
+        fats=v.fats,
+        carbohydrates=v.carbohydrates,
+        is_available=v.is_available,
+        image=v.image,
+      ))
+    await db.flush()
+
+    # F) Commit + refresh
     await db.commit()
     await db.refresh(product)
     return product
@@ -187,14 +242,13 @@ class ProductService:
     product = await ProductService.get_product_by_id(db, product_id)
 
     if not product:
-        raise ValueError("Продукт не найден")
+      return False
 
-    # Удаляем связанные изображения
     for variant in product.variants:
-        if variant.image:
-            image_path = variant.image.lstrip("/")
-            if os.path.exists(image_path):
-                os.remove(image_path)
+      if variant.image:
+        image_path = variant.image.lstrip("/")
+        if os.path.exists(image_path):
+          os.remove(image_path)
 
     await db.delete(product)
     await db.commit()

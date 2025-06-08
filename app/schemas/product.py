@@ -16,6 +16,7 @@ class IngredientResponse(BaseModel):
   image: Optional[str]
   overlay_image: Optional[str]
   price: int
+  is_deleted: bool
 
   model_config = {"from_attributes": True}
 
@@ -47,19 +48,6 @@ class ProductResponse(BaseModel):
 
   model_config = {"from_attributes": True}
 
-  @model_validator(mode="after")
-  def _fill_ingredients(self):
-    orm_obj = getattr(self, "__pydantic_original__", self)
-    ingr_list: List[IngredientResponse] = []
-
-    if hasattr(orm_obj, "pizza_ingredients"):
-      for pi in orm_obj.pizza_ingredients:
-        if not pi.is_deleted and pi.ingredient:
-          ingr_list.append(IngredientResponse.model_validate(pi.ingredient))
-
-    object.__setattr__(self, "ingredients", ingr_list)
-    return self
-
 class ProductVariantCreate(BaseModel):
     size: str
     price: float
@@ -79,15 +67,17 @@ class ReplacementGroupCreate(BaseModel):
     max_choices: int = 1
     items: List[ReplacementItemCreate]
 
-class ProductReplacementCreate(BaseModel):
-    group: ReplacementGroupCreate
-
 class ProductBase(BaseModel):
   name: str
   category_id: UUID
   is_available: bool = True
   variants: List[ProductVariantCreate]
-  replacements: List[ProductReplacementCreate] = []
+  position: int
+
+  model_config = {
+    "from_attributes": True,
+    "extra": "forbid",
+  }
 
   @model_validator(mode="after")
   def check_variants(self) -> "ProductBase":
@@ -110,7 +100,7 @@ class ProductCreate(ProductBase):
   description: Optional[str] = None
 
 class PizzaUpdate(PizzaCreate):
-  pass
+  id: UUID
 
 class ProductUpdate(ProductCreate):
-  pass
+  id: UUID

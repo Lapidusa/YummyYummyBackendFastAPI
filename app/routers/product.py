@@ -2,6 +2,7 @@ import os
 from uuid import UUID
 import json
 from fastapi import Form, File, Depends, UploadFile, APIRouter, Header
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import SecurityMiddleware
@@ -126,13 +127,9 @@ async def update_product(
   parsed_data["variants"] = variants_data
 
   try:
+    product_data = PizzaUpdate(**parsed_data)
+  except ValidationError:
     product_data = ProductUpdate(**parsed_data)
-  except Exception as e:
-    try:
-      product_data = PizzaUpdate(**parsed_data)
-    except Exception as e:
-      return ResponseUtils.error(f"Ошибка валидации: {str(e)}")
-
   try:
     product = await ProductService.update_product(db, product_id, product_data)
   except ValueError as e:

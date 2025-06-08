@@ -31,7 +31,10 @@ async def get_city(city_id: UUID, db: AsyncSession = Depends(get_db)):
   except NoResultFound:
     return ResponseUtils.error(message=f"Нет найденного города с id {city_id}")
 
-@router.get("/{city_id}/full")
+@router.get("/{city_id}/full",
+            response_model=City,  # подхватит model_config={"from_attributes":True}
+            response_model_exclude_none=True
+)
 async def get_city_with_all( city_id: UUID, db: AsyncSession = Depends(get_db)):
   stmt = (
     select(CityModel)
@@ -55,9 +58,9 @@ async def get_city_with_all( city_id: UUID, db: AsyncSession = Depends(get_db)):
   result = await db.execute(stmt)
   city_obj = result.scalar_one_or_none()
   if not city_obj:
-    raise HTTPException(status_code=404, detail="Город не найден")
+    raise HTTPException(404, "Город не найден")
 
-  return ResponseUtils.success(data=City.model_validate(city_obj))
+  return city_obj
 @router.post("/")
 async def create_city(
   city_data: CreateCity,
