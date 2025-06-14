@@ -1,6 +1,6 @@
 from enum import IntEnum
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, model_validator, ConfigDict
 from typing import List, Optional, Literal
 from uuid import UUID
 from app.db.models.products import Dough
@@ -59,6 +59,15 @@ class ProductVariantCreate(BaseModel):
     is_available: bool = True
     image: Optional[str] = None
 
+class ProductVariantOut(BaseModel):
+    id: UUID
+    size: str
+    price: float
+    image: Optional[str] = None
+    model_config = ConfigDict(
+      from_attributes=True,
+      extra="forbid"
+    )
 class ReplacementItemCreate(BaseModel):
     product_id: UUID
 
@@ -72,7 +81,7 @@ class ProductBase(BaseModel):
   category_id: UUID
   is_available: bool = True
   variants: List[ProductVariantCreate]
-  position: int
+  position: int = 0
 
   model_config = {
     "from_attributes": True,
@@ -104,3 +113,4 @@ class PizzaUpdate(PizzaCreate):
 
 class ProductUpdate(ProductCreate):
   id: UUID
+

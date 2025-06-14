@@ -16,7 +16,6 @@ db: AsyncSession
 class CityService:
   @staticmethod
   async def get_city_coordinates(city_name: str) -> dict:
-    # Строим запрос к Nominatim API
     async with httpx.AsyncClient() as client:
       response = await client.get(f"https://nominatim.openstreetmap.org/search", params={
         "q": city_name,
@@ -32,7 +31,6 @@ class CityService:
       if not data:
         raise Exception(f"Город {city_name} не найден")
 
-      # Получаем координаты из ответа
       lat = float(data[0]["lat"])
       lon = float(data[0]["lon"])
       return {"lat": lat, "lon": lon}

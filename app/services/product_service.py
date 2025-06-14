@@ -92,6 +92,7 @@ class ProductService:
 
     for variant_data in product_data.variants:
       variant = ProductVariant(
+        product_id=obj.id,
         size=variant_data.size,
         price=variant_data.price,
         weight=variant_data.weight,
@@ -139,13 +140,11 @@ class ProductService:
       product_id: UUID,
       product_data: ProductUnionUpdate
   ) -> Product:
-    # A) Получаем базовый Product
     stmt = select(Product).where(Product.id == product_id)
     product = (await db.execute(stmt)).scalar_one_or_none()
     if product is None:
       raise HTTPException(404, "Продукт не найден")
 
-    # B) Общие поля + flush
     product.name = product_data.name
     product.description = product_data.description
     product.is_available = product_data.is_available
@@ -153,9 +152,7 @@ class ProductService:
     product.type = product_data.type
     await db.flush()
 
-    # C) Если пицца — работаем с дочерней таблицей pizzas
     if isinstance(product_data, PizzaUpdate):
-      # 1. Получаем или создаём Pizza (joined-table)
       existing = await db.execute(
         select(Pizza.id).where(Pizza.id == product_id)
       )
@@ -166,7 +163,6 @@ class ProductService:
         )
         await db.flush()
       else:
-        # если уже есть — обновляем dough
         await db.execute(
           update(Pizza.__table__)
           .where(Pizza.__table__.c.id == product_id)
@@ -174,7 +170,6 @@ class ProductService:
         )
         await db.flush()
 
-      # C2) Обновляем ингредиенты: delete + insert
       await db.execute(
         delete(PizzaIngredient)
         .where(PizzaIngredient.pizza_id == product_id)
@@ -200,7 +195,6 @@ class ProductService:
       await db.flush()
 
     else:
-      # D) Конвертация обратно: чистим все pizza-данные
       await db.execute(
         delete(PizzaIngredient)
         .where(PizzaIngredient.pizza_id == product_id)
@@ -210,7 +204,6 @@ class ProductService:
       )
       await db.flush()
 
-      # E) Обновляем варианты: delete + insert
     await db.execute(
       delete(ProductVariant)
       .where(ProductVariant.product_id == product_id)
@@ -232,7 +225,6 @@ class ProductService:
       ))
     await db.flush()
 
-    # F) Commit + refresh
     await db.commit()
     await db.refresh(product)
     return product

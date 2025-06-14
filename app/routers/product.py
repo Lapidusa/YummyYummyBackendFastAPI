@@ -96,7 +96,6 @@ async def update_product(
 
   image_index = 0
   for i, variant in enumerate(variants_data):
-    # если изображение поменялось — берём из images
     if variant.get("changed_image"):
       if image_index >= len(images):
         return ResponseUtils.error(f"Нет изображения для варианта {i + 1}")
@@ -115,7 +114,7 @@ async def update_product(
       variant["image"] = f"/media/products/{image.filename}"
       image_index += 1
 
-    # если не поменялось, но image всё равно строка — оставляем как есть
+
     elif isinstance(variant.get("image"), str):
       if not variant["image"].startswith("/media/products/"):
         variant["image"] = f"/media/products/{variant['image']}"

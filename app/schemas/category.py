@@ -17,7 +17,6 @@ class Category(BaseModel):
   store_id: UUID = Field(..., description="ID магазина, к которому привязана категория")
   is_available: bool = Field(..., description="Доступна ли категория")
   type: TypeCategory = Field(..., description="Тип категории (group, pizza, constructor)")
-  # products: List["ProductResponse"]
   class Config:
       from_attributes = True
 

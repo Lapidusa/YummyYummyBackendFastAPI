@@ -8,7 +8,7 @@ from enum import IntEnum
 from app.db import Base
 from typing import List
 
-from app.db.models import Category
+from app.db.models.categories import Category
 
 
 class PizzaIngredient(Base):

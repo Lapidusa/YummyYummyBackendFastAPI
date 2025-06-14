@@ -22,18 +22,15 @@ class StoreService:
     point_geom = load_wkb(point_data)
     area_geom = load_wkb(area_data)
 
-    # Проверка: точка внутри полигона
     if not area_geom.contains(point_geom):
       return ResponseUtils.error(message="Локация магазина должна находиться внутри границы области.")
 
-    # Получение всех других магазинов (если редактирование — исключаем текущий ID)
     query = select(Store)
     if store_id:
       query = query.where(Store.id != store_id)
     result = await db.execute(query)
     existing_stores = result.scalars().all()
 
-    # Проверка: полигон не должен пересекаться с другими
     for other_store in existing_stores:
       if other_store.area:
         other_area = load_wkb(bytes(other_store.area.data))

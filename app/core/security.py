@@ -6,8 +6,9 @@ from uuid import UUID as UUID_PY
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import get_db
 from app.db.models.users import User, Roles
-from fastapi import APIRouter
+from fastapi import APIRouter, Header, Depends, HTTPException
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -18,6 +19,15 @@ router = APIRouter()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+
+async def get_current_user(
+    token: str = Header(..., alias="token"),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+  user_or_error = await SecurityMiddleware.get_user_or_error_dict(token, db)
+  if isinstance(user_or_error, dict):
+    raise HTTPException(status_code=401, detail=user_or_error)
+  return user_or_error
 
 class SecurityMiddleware:
   @staticmethod
@@ -93,3 +103,8 @@ class SecurityMiddleware:
   @staticmethod
   async def is_admin_or_courier(token: str, db: AsyncSession):
     return await SecurityMiddleware.check_roles(token, db, {Roles.ADMIN, Roles.COURIER})
+
+  @staticmethod
+  async def is_not_user(token: str, db: AsyncSession) -> Union[User, dict]:
+    allowed_roles = {role for role in Roles if role != Roles.USER}
+    return await SecurityMiddleware.check_roles(token, db, allowed_roles)

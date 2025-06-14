@@ -16,20 +16,16 @@ config = context.config
 config.set_main_option('sqlalchemy.url', settings.DATABASE_URL)
 load_dotenv(find_dotenv())
 database_url = os.getenv("DATABASE_URL")
-# Настройка логирования
 fileConfig(config.config_file_name)
 
-# Укажите метаданные ваших моделей для автогенерации миграций
 target_metadata = Base.metadata
 
 def render_item(obj_type, obj, autogen_context):
-  """Apply custom rendering for selected items."""
   if obj_type == 'type' and isinstance(obj, (Geometry, Geography, Raster)):
     import_name = obj.__class__.__name__
     autogen_context.imports.add(f"from geoalchemy2 import {import_name}")
     return "%r" % obj
 
-  # default rendering for other objects
   return False
 
 
@@ -82,11 +78,6 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_migrations_online() -> None:
-
-    # connectable = create_async_engine(
-    #   database_url,  # Используем URL из переменной окружения
-    #   poolclass=pool.NullPool,
-    # )
     connectable = async_engine_from_config(
       config.get_section(config.config_ini_section),
       prefix="sqlalchemy.",

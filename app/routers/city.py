@@ -32,7 +32,7 @@ async def get_city(city_id: UUID, db: AsyncSession = Depends(get_db)):
     return ResponseUtils.error(message=f"Нет найденного города с id {city_id}")
 
 @router.get("/{city_id}/full",
-            response_model=City,  # подхватит model_config={"from_attributes":True}
+            response_model=City,
             response_model_exclude_none=True
 )
 async def get_city_with_all( city_id: UUID, db: AsyncSession = Depends(get_db)):
